@@ -1,0 +1,41 @@
+version: "3.8"
+services:
+  php:
+    build:
+      context: './php'
+    ports:
+      - "9000:9000"
+    expose:
+      - "6666"
+    networks:
+      - backend
+    volumes:
+      - ./app/:/var/www/html/
+    container_name: 'php'
+  apache:
+    build:
+      context: './apache'
+    depends_on: 
+      - php
+      - mysql
+    ports:
+      - "6666:6666"
+    networks:
+      - backend
+      - frontend
+    volumes:
+      - ./app/:/usr/local/apache2/htdocs/
+    container_name: 'web'
+  mysql:
+    image: 'mysql:latest'
+    restart: always
+    ports:
+      - "3306:3306"
+    networks:
+      - backend
+    environment:
+      MYSQL_ROOT_PASSWORD: "abc123"
+    container_name: 'db'
+networks:
+  backend:
+  frontend:

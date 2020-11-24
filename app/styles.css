@@ -1,0 +1,31 @@
+html {
+    background-color: black;
+    color: white;
+}
+
+.wrapper {
+    margin: 0 auto;
+}
+
+table {
+    border: 1px solid violet;
+}
+
+tr {
+    border: 1px solid violet;
+}
+
+th {
+    border: 1px solid violet;
+    font-size: 20px;
+    font-weight: bold;
+}
+
+td {
+    border: 1px solid violet;
+    font-size: 15px;
+}
+
+table {
+    border: 1px solid violet;
+}
