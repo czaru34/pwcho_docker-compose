@@ -10,9 +10,9 @@ services:
     volumes:
       - ./app/:/var/www/html/
     container_name: 'php'
-  apache:
-    build:
-      context: './apache'
+  httpd:
+    build: './httpd'
+    image: httpd:pwcho
     depends_on: 
       - php
       - mysql
