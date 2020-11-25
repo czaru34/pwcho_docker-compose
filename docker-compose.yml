@@ -1,8 +1,8 @@
 version: "3.8"
 services:
   php:
-    build:
-      context: './php'
+    build: './php'
+    image: php:pwcho
     ports:
       - "9000:9000"
     networks:
@@ -25,12 +25,16 @@ services:
       - ./app/:/usr/local/apache2/htdocs/
     container_name: 'web'
   mysql:
-    image: 'mysql:latest'
+    image: mysql:pwcho
+    build:
+      context: ./mysql
+      dockerfile: Dockerfile.debian
     restart: always
     ports:
       - "3306:3306"
     networks:
       - backend
+    command: --default-authentication-plugin=mysql_native_password
     environment:
       MYSQL_ROOT_PASSWORD: "abc123"
     container_name: 'db'

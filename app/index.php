@@ -1,34 +1,36 @@
+<!DOCTYPE html>
 <html lang="pl">
     <head>
         <meta charset="utf-8">
-        <title>Docker compose</title>
+        <title>PWCHO-LAMP</title>
         <link rel="stylesheet" href="styles.css">
+        <link rel="icon" type="image/jpg" href="Pikacz.jpg"/>
     </head>
     <body>
 <div class="wrapper">
-        <h1>Hemlo!</h1>
+        <h1>HEMLO!</h1>
 <?php
-$servername = "mysql";
-$username = "root";
-$password = "abc123";
-$conn = new mysqli($servername, $username, $password);
-if ($conn->connect_errno)
-    printf($conn->connect_error);
-else {
-    $results = $conn->query('show databases');
+    $serverName = "mysql";
+    $userName = "root";
+    $password = "abc123";
+    $conn = new mysqli($serverName, $userName, $password);
+    if ($conn->connect_errno)
+        printf($conn->connect_error);
+    else {
+        $results = $conn->query('SHOW databases;');
 
-    while($row = $results->fetch_assoc())
-        $databases[]=$row['Database'];
+        while($row = $results->fetch_assoc())
+            $databases[] = $row['Database'];
 ?>
         <table>
             <tr>
                 <th>Databases</th>
             </tr>
-            <?php foreach($databases as $value)
-                echo '<tr><td>'.$value.'</td></tr>';
+            <?php foreach($databases as $val)
+                echo '<tr><td>'.$val.'</td></tr>';
+    }
             ?>
         </table>
 </div>
-<?php } ?>
     </body>
 </html>
