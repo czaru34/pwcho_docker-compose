@@ -1,5 +1,10 @@
-{{ include "version-id" -}}
-FROM {{ env.from }}
+#
+# NOTE: THIS DOCKERFILE IS GENERATED VIA "apply-templates.sh"
+#
+# PLEASE DO NOT EDIT IT DIRECTLY.
+#
+
+FROM alpine:3.12
 
 # dependencies required for running "phpize"
 # these get automatically installed and removed by "docker-php-ext-*" (unless they're already installed)
@@ -40,11 +45,9 @@ RUN set -eux; \
 	mkdir -p /var/www/html; \
 	chown www-data:www-data /var/www/html; \
 	chmod 777 /var/www/html
-{{
-	if env.variantBlock1 != "" then
-		"\n" + env.variantBlock1 + "\n"
-	else "" end
-}}
+
+ENV PHP_EXTRA_CONFIGURE_ARGS --enable-fpm --with-fpm-user=www-data --with-fpm-group=www-data --disable-cgi
+
 # Apply stack smash protection to functions using local buffers and alloca()
 # Make PHP's main executable position-independent (improves ASLR security mechanism, and has no performance impact on x86_64)
 # Enable optimization (-O2)
@@ -55,11 +58,11 @@ ENV PHP_CFLAGS="-fstack-protector-strong -fpic -fpie -O2 -D_LARGEFILE_SOURCE -D_
 ENV PHP_CPPFLAGS="$PHP_CFLAGS"
 ENV PHP_LDFLAGS="-Wl,-O1 -pie"
 
-ENV GPG_KEYS {{ .gpgKeys }}
+ENV GPG_KEYS 42670A7FE4D0441C8E4632349E4FDC074A4EF02D 5A52880781F755608BF815FC910DEB46F53EA312
 
-ENV PHP_VERSION {{ .version }}
-ENV PHP_URL="{{ .url }}" PHP_ASC_URL="{{ .ascUrl // "" }}"
-ENV PHP_SHA256="{{ .sha256 // "" }}"
+ENV PHP_VERSION 7.4.12
+ENV PHP_URL="https://www.php.net/distributions/php-7.4.12.tar.xz" PHP_ASC_URL="https://www.php.net/distributions/php-7.4.12.tar.xz.asc"
+ENV PHP_SHA256="e82d2bcead05255f6b7d2ff4e2561bc334204955820cabc2457b5239fde96b76"
 
 RUN set -eux; \
 	\
@@ -96,19 +99,10 @@ RUN set -eux; \
 		coreutils \
 		curl-dev \
 		libedit-dev \
-{{ if (.version | version_id) >= ("7.2" | version_id) then ( -}}
 		libsodium-dev \
-{{ ) else "" end -}}
 		libxml2-dev \
-{{
-	# https://github.com/docker-library/php/issues/888
-	if (.version | version_id) >= ("7.4" | version_id) then (
--}}
 		linux-headers \
-{{ ) else "" end -}}
-{{ if (.version | version_id) >= ("7.4" | version_id) then ( -}}
 		oniguruma-dev \
-{{ ) else "" end -}}
 		openssl-dev \
 		sqlite-dev \
 	; \
@@ -142,10 +136,8 @@ RUN set -eux; \
 		--enable-mysqlnd \
 # https://wiki.php.net/rfc/argon2_password_hash (7.2+)
 		--with-password-argon2 \
-{{ if (.version | version_id) >= ("7.2" | version_id) then ( -}}
 # https://wiki.php.net/rfc/libsodium
 		--with-sodium=shared \
-{{ ) else "" end -}}
 # always build against system sqlite3 (https://github.com/php/php-src/commit/6083a387a81dbbd66d6316a3a12a63f06d5f7109)
 		--with-pdo-sqlite=/usr \
 		--with-sqlite3=/usr \
@@ -155,11 +147,9 @@ RUN set -eux; \
 		--with-openssl \
 		--with-zlib \
 		\
-{{ if (.version | version_id) | . >= ("7.4" | version_id) then ( -}}
 # in PHP 7.4+, the pecl/pear installers are officially deprecated (requiring an explicit "--with-pear")
 		--with-pear \
 		\
-{{ ) else "" end -}}
 # bundled pcre does not support JIT on s390x
 # https://manpages.debian.org/stretch/libpcre3-dev/pcrejit.3.en.html#AVAILABILITY_OF_JIT_SUPPORT
 		$(test "$gnuArch" = 's390x-linux-musl' && echo '--without-pcre-jit') \
@@ -188,26 +178,62 @@ RUN set -eux; \
 	\
 	apk del --no-network .build-deps; \
 	\
-{{ if (.version | version_id) < ("8" | version_id) then ( -}}
 # update pecl channel definitions https://github.com/docker-library/php/issues/443
 	pecl update-channels; \
 	rm -rf /tmp/pear ~/.pearrc; \
 	\
-{{ ) else "" end -}}
 # smoke test
 	php --version
 
 COPY docker-php-ext-* docker-php-entrypoint /usr/local/bin/
 
-{{ if (.version | version_id) >= ("7.2" | version_id) then ( -}}
 # sodium was built as a shared module (so that it can be replaced later if so desired), so let's enable it too (https://github.com/docker-library/php/issues/598)
 RUN docker-php-ext-enable sodium
 
-{{ ) else "" end -}}
 ENTRYPOINT ["docker-php-entrypoint"]
-{{
-	if env.variantBlock2 != "" then
-		env.variantBlock2 + "\n"
-	else "" end
-	+ "CMD " + env.cmd
-}}
+WORKDIR /var/www/html
+
+RUN set -eux; \
+	cd /usr/local/etc; \
+	if [ -d php-fpm.d ]; then \
+		# for some reason, upstream's php-fpm.conf.default has "include=NONE/etc/php-fpm.d/*.conf"
+		sed 's!=NONE/!=!g' php-fpm.conf.default | tee php-fpm.conf > /dev/null; \
+		cp php-fpm.d/www.conf.default php-fpm.d/www.conf; \
+	else \
+		# PHP 5.x doesn't use "include=" by default, so we'll create our own simple config that mimics PHP 7+ for consistency
+		mkdir php-fpm.d; \
+		cp php-fpm.conf.default php-fpm.d/www.conf; \
+		{ \
+			echo '[global]'; \
+			echo 'include=etc/php-fpm.d/*.conf'; \
+		} | tee php-fpm.conf; \
+	fi; \
+	{ \
+		echo '[global]'; \
+		echo 'error_log = /proc/self/fd/2'; \
+		echo; echo '; https://github.com/docker-library/php/pull/725#issuecomment-443540114'; echo 'log_limit = 8192'; \
+		echo; \
+		echo '[www]'; \
+		echo '; if we send this to /proc/self/fd/1, it never appears'; \
+		echo 'access.log = /proc/self/fd/2'; \
+		echo; \
+		echo 'clear_env = no'; \
+		echo; \
+		echo '; Ensure worker stdout and stderr are sent to the main error log.'; \
+		echo 'catch_workers_output = yes'; \
+		echo 'decorate_workers_output = no'; \
+	} | tee php-fpm.d/docker.conf; \
+	{ \
+		echo '[global]'; \
+		echo 'daemonize = no'; \
+		echo; \
+		echo '[www]'; \
+		echo 'listen = 9000'; \
+	} | tee php-fpm.d/zz-docker.conf
+
+# Override stop signal to stop process gracefully
+# https://github.com/php/php-src/blob/17baa87faddc2550def3ae7314236826bc1b1398/sapi/fpm/php-fpm.8.in#L163
+STOPSIGNAL SIGQUIT
+
+EXPOSE 9000
+CMD ["php-fpm"]
